@@ -103,7 +103,7 @@ void *produce( void  )
                 sem_getvalue(&sem, &queue_size);
 
                 unsigned long long sec  = get_current_time_with_ms()/1000;
-                if (producerLog[logIndex]->key != get_current_time_with_ms()/1000){
+                if (producerLog[logIndex]->key != get_current_time_with_ms()/1000){//TODO this feels like its wrong
                     logIndex++;
                 }
                 producerLog[logIndex] = malloc(sizeof(logInfo));
@@ -116,7 +116,7 @@ void *produce( void  )
                 }
                 printf("Producer info - Current record timestamp - %llu, Current record index - %lu, Throughput - %lu \n", producerLog[logIndex]->key, producerLog[logIndex]->value, producerLog[logIndex]->throughput );
             }
-            sem_post(&sem);
+            sem_post(&sem); //semaphore counts the elements in queue
 
             if (spikeInterval !=0 && spikeMagnitute !=0 && i % spikeInterval == 0 ) {
                 if (isSpikeActive == 0) {

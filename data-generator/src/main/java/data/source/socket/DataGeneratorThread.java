@@ -1,7 +1,8 @@
 package data.source.socket;
 
 import com.esotericsoftware.yamlbeans.YamlReader;
-import data.source.model.AdsEvent;
+import data.source.model.AdsEventGenerator;
+import data.source.model.EventGenerator;
 
 import java.io.*;
 import java.net.InetAddress;
@@ -10,28 +11,26 @@ import java.net.Socket;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.concurrent.*;
-import java.util.logging.FileHandler;
 import java.util.logging.Logger;
-import java.util.logging.SimpleFormatter;
 
 /**
  * Created by jeka01 on 02/09/16.
  */
-public class DataGenerator extends Thread {
+public class DataGeneratorThread extends Thread {
     private int benchmarkCount;
     private long sleepTime;
     private static Double partition;
     private BlockingQueue<String> buffer;
-    private AdsEvent adsEvent;
+    private EventGenerator eventGenerator;
     private HashMap<Long, Integer> bufferSizeAtTime = new HashMap<>();
 
-    private HashMap<Long,Integer> dataGenRate = new HashMap<>();
+    private HashMap<Long, Integer> dataGenRate = new HashMap<>();
 
-    private DataGenerator(HashMap conf, BlockingQueue<String> buffer) throws IOException {
+    private DataGeneratorThread(EventGenerator eventGenerator, HashMap conf, BlockingQueue<String> buffer) throws IOException {
         this.buffer = buffer;
         this.benchmarkCount = new Integer(conf.get("benchmarking.count").toString());
         this.sleepTime = new Long(conf.get("datagenerator.sleep").toString());
-        adsEvent = new AdsEvent( partition);
+        this.eventGenerator = eventGenerator;
     }
 
     public void run() {
@@ -50,9 +49,9 @@ public class DataGenerator extends Thread {
         if (sleepTime != 0) {
             for (int i = 0; i < tupleCount; ) {
                 Thread.sleep(sleepTime);
-                for (int b = 0; b < 1 && i < tupleCount; b++, i++) {
-                    buffer.put(adsEvent.generateJson());
-                    if (i % 1000 == 0){
+                for (int b = 0; b < 1 && i < tupleCount; b++, i++) { //TODO what is going on here
+                    buffer.put(this.eventGenerator.generateEvent().toString());
+                    if (i % 1000 == 0) {
                         long interval = TimeUnit.MILLISECONDS.toSeconds(System.currentTimeMillis());
                         int bufferSize = buffer.size();
                         bufferSizeAtTime.put(interval, bufferSize);
@@ -64,8 +63,8 @@ public class DataGenerator extends Thread {
         } else {
             for (int i = 0; i < tupleCount; ) {
                 for (int b = 0; b < 1 && i < tupleCount; b++, i++) {
-                    buffer.put(adsEvent.generateJson());
-                    if (i % 1000 == 0){
+                    buffer.put(this.eventGenerator.generateEvent().toString());
+                    if (i % 1000 == 0) {
                         long interval = TimeUnit.MILLISECONDS.toSeconds(System.currentTimeMillis());
                         int bufferSize = buffer.size();
                         bufferSizeAtTime.put(interval, bufferSize);
@@ -79,9 +78,24 @@ public class DataGenerator extends Thread {
         System.out.println("Benchmark producer data rate is " + tupleCount / runtime + " ps");
     }
 
+    public static EventGenerator parseEventGenerator(String[] args) throws Exception {
+        EventGenerator selected;
+        partition = new Double(args[2]);
+
+        switch (args[1]) {
+            case "ads":
+                selected = new AdsEventGenerator(partition);
+                break;
+            default:
+                throw new Exception("No model selected!");
+        }
+
+        return selected;
+    }
+
     public static void main(String[] args) throws Exception {
         String confFilePath = args[0];
-        partition = new Double(args[1]);
+        EventGenerator eventGenerator = parseEventGenerator(args);
         YamlReader reader = new YamlReader(new FileReader(confFilePath));
         Object object = reader.read();
         HashMap conf = (HashMap) object;
@@ -96,9 +110,9 @@ public class DataGenerator extends Thread {
         int bufferSize = new Integer(conf.get("benchmarking.count").toString());
         BlockingQueue<String> buffer = new ArrayBlockingQueue<String>(bufferSize);    // new LinkedBlockingQueue<>();
         try {
-            Thread generator = new DataGenerator(conf, buffer );
+            Thread generator = new DataGeneratorThread(eventGenerator,conf, buffer);
             generator.start();
-            Thread bufferReader = new BufferReader(buffer, conf, out, serverSocket);
+            Thread bufferReader = new BufferReaderThread(buffer, conf, out, serverSocket);
             bufferReader.start();
         } catch (Exception e) {
             e.printStackTrace();
@@ -106,14 +120,15 @@ public class DataGenerator extends Thread {
     }
 }
 
-class BufferReader extends Thread {
+class BufferReaderThread extends Thread {
     private BlockingQueue<String> buffer;
     private Logger logger = Logger.getLogger("MyLog");
     private PrintWriter out;
     private ServerSocket serverSocket;
     private int benchmarkCount;
-    private HashMap<Long,Integer> thoughputCount = new HashMap<>();
-    public BufferReader(BlockingQueue<String> buffer, HashMap conf, PrintWriter out, ServerSocket serverSocket) {
+    private HashMap<Long, Integer> thoughputCount = new HashMap<>();
+
+    public BufferReaderThread(BlockingQueue<String> buffer, HashMap conf, PrintWriter out, ServerSocket serverSocket) {
         this.buffer = buffer;
         this.out = out;
         this.serverSocket = serverSocket;
@@ -128,7 +143,7 @@ class BufferReader extends Thread {
             for (int i = 0; i < benchmarkCount; i++) {
                 String tuple = buffer.take();
                 out.println(tuple);
-                if (i % 1000 == 0 ){
+                if (i % 1000 == 0) {
                     thoughputCount.put(TimeUnit.MILLISECONDS.toSeconds(System.currentTimeMillis()), i - tempVal);
                     tempVal = i;
                     logger.info(i + " tuples sent from buffer");
@@ -151,9 +166,9 @@ class BufferReader extends Thread {
 
     }
 
-    public static void writeHashMapToCsv(HashMap<Long, Integer> hm, String path)  {
-        try{
-            File file = new File(path.split("\\.")[0]+ "-" + InetAddress.getLocalHost().getHostName() + ".csv");
+    public static void writeHashMapToCsv(HashMap<Long, Integer> hm, String path) {
+        try {
+            File file = new File(path.split("\\.")[0] + "-" + InetAddress.getLocalHost().getHostName() + ".csv");
 
             if (file.exists()) {
                 file.delete(); //you might want to check if delete was successfull
@@ -163,11 +178,11 @@ class BufferReader extends Thread {
             BufferedWriter bw = new BufferedWriter(new OutputStreamWriter(fileOutput));
             Iterator it = hm.entrySet().iterator();
             while (it.hasNext()) {
-                HashMap.Entry pair = (HashMap.Entry)it.next();
-                bw.write(pair.getKey()+ "," + pair.getValue() + "\n");
+                HashMap.Entry pair = (HashMap.Entry) it.next();
+                bw.write(pair.getKey() + "," + pair.getValue() + "\n");
             }
             bw.flush();
-        } catch (Exception e){
+        } catch (Exception e) {
             e.printStackTrace();
         }
 
