@@ -63,14 +63,14 @@ public class Master {
         System.out.println("Done waiting for slaves. " + slaves.size()  + " slaves connected.");
 
         System.out.println("Finding sustainable throughput...");
-        double sustainableThroughput = findSustainableThroughput(slaves);
+        double sustainableThroughput = findSustainableThroughput(slaves, eventGenerator);
 
         System.out.println("Sustainable throughput found: " + sustainableThroughput);
         //do actual experiment
 
         long testDuration = (Long) conf.get("testduration");
 
-        TestRequest request = new TestRequest(sustainableThroughput, slaves.size(), testDuration);
+        TestRequest request = new TestRequest(sustainableThroughput, slaves.size(), testDuration, eventGenerator);
         for (Socket slaveConnection : slaves) {
             ObjectOutputStream oos = new ObjectOutputStream(slaveConnection.getOutputStream());
             oos.writeObject(request);
@@ -85,8 +85,8 @@ public class Master {
         }
     }
 
-    static boolean testThroughput(double throughput, Set<Socket> slaves) throws IOException, ClassNotFoundException {
-        TestRequest request = new TestRequest(throughput, slaves.size(), 20000);
+    static boolean testThroughput(double throughput, Set<Socket> slaves, EventGenerator eventGenerator) throws IOException, ClassNotFoundException {
+        TestRequest request = new TestRequest(throughput, slaves.size(), 20000,eventGenerator);
         for (Socket slaveConnection : slaves) {
             ObjectOutputStream oos = new ObjectOutputStream(slaveConnection.getOutputStream());
             oos.writeObject(request);
@@ -106,7 +106,7 @@ public class Master {
 
     }
 
-    private static double findSustainableThroughput(Set<Socket> slaves) throws IOException, ClassNotFoundException {
+    private static double findSustainableThroughput(Set<Socket> slaves, EventGenerator eventGenerator) throws IOException, ClassNotFoundException {
 
         double throughput = START_THROUGHPUT;
         double throughputDecrement = START_THROUGHPUT_DECREMENT;
@@ -115,7 +115,7 @@ public class Master {
         while(true) {
 
 
-            boolean sustainable = testThroughput(throughput, slaves);
+            boolean sustainable = testThroughput(throughput, slaves, eventGenerator);
 
             if(sustainable && throughputDecrement <= STOP_THROUGHPUT_DECREMENT){
                 break;

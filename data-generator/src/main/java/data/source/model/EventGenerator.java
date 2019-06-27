@@ -1,6 +1,8 @@
 package data.source.model;
 
-public interface EventGenerator {
+import java.io.Serializable;
+
+public interface EventGenerator extends Serializable {
 
     public Event generateEvent();
 

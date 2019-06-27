@@ -1,5 +1,7 @@
 package data.distributed;
 
+import data.source.model.EventGenerator;
+
 import java.io.Serializable;
 
 public class TestRequest implements Serializable {
@@ -7,13 +9,15 @@ public class TestRequest implements Serializable {
     private int numParticipatingNodes;
     private double singleNodeThroughput;
     private long testDuration;
+    private EventGenerator generatorToUse;
 
 
-    public TestRequest(double totalThroughput, int numParticipatingNodes, long testDuration) {
+    public TestRequest(double totalThroughput, int numParticipatingNodes, long testDuration,EventGenerator generatorToUse) {
         this.totalThroughput = totalThroughput;
         this.numParticipatingNodes = numParticipatingNodes;
         this.singleNodeThroughput = totalThroughput/numParticipatingNodes;
         this.testDuration = testDuration;
+        this.generatorToUse =generatorToUse;
     }
 
     public double getTotalThroughput() {
@@ -46,5 +50,13 @@ public class TestRequest implements Serializable {
 
     public void setTestDuration(long testDuration) {
         this.testDuration = testDuration;
+    }
+
+    public EventGenerator getGeneratorToUse() {
+        return generatorToUse;
+    }
+
+    public void setGeneratorToUse(EventGenerator generatorToUse) {
+        this.generatorToUse = generatorToUse;
     }
 }
