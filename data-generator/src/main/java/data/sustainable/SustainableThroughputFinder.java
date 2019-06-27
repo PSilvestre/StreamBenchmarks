@@ -13,6 +13,6 @@ import java.util.concurrent.BlockingQueue;
  */
 public interface SustainableThroughputFinder {
 
-    float findSustainableThroughput(Socket connection, EventGenerator eventGenerator, HashMap conf, BlockingQueue<String> buffer) throws IOException;
+    float findSustainableThroughput(Socket connection, EventGenerator eventGenerator, HashMap conf) throws IOException;
 
 }

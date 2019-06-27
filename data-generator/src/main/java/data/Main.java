@@ -45,11 +45,13 @@ public class Main {
         System.out.println("Just connected to " + server.getRemoteSocketAddress());
         PrintWriter out = new PrintWriter(server.getOutputStream(), true);
         int bufferSize = new Integer(conf.get("benchmarking.count").toString());
+
         BlockingQueue<String> buffer = new ArrayBlockingQueue<String>(bufferSize);    // new LinkedBlockingQueue<>();
+
         try {
-            Thread generator = new DataGeneratorThread(eventGenerator,conf, buffer);
+            Thread generator = new DataGeneratorThread(eventGenerator, conf, buffer);
             generator.start();
-            Thread bufferReader = new BufferReaderThread(buffer, conf, out);
+            Thread bufferReader = new BufferReaderThread(buffer, conf, out, true);
             bufferReader.start();
         } catch (Exception e) {
             e.printStackTrace();

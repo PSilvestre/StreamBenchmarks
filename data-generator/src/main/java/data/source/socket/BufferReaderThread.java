@@ -16,19 +16,32 @@ public class BufferReaderThread extends Thread {
     private PrintWriter out;
     private int benchmarkCount;
     private HashMap<Long, Integer> thoughputCount = new HashMap<>();
+    private boolean running;
+    private boolean benchmark;
 
-    public BufferReaderThread(BlockingQueue<String> buffer, HashMap conf, PrintWriter out) {
+    public BufferReaderThread(BlockingQueue<String> buffer, HashMap conf, PrintWriter out, boolean benchmark) {
         this.buffer = buffer;
         this.out = out;
         this.benchmarkCount = new Integer(conf.get("benchmarking.count").toString());
+        this.benchmark = benchmark;
     }
 
+    public boolean isRunning() {
+        return running;
+    }
+
+    public void setRunning(boolean running) {
+        this.running = running;
+    }
+
+
     public void run() {
+        running = true;
         try {
             long timeStart = System.currentTimeMillis();
 
             int tempVal = 0;
-            for (int i = 0; i < benchmarkCount; i++) {
+            for (int i = 0; i < benchmarkCount && running; i++) {
                 String tuple = buffer.take();
                 out.println(tuple);
                 if (i % 1000 == 0) {
@@ -41,8 +54,9 @@ public class BufferReaderThread extends Thread {
             long runtime = (timeEnd - timeStart) / 1000;
             long throughput = benchmarkCount / runtime;
 
-            logger.info("---BENCHMARK ENDED--- on " + runtime + " seconds with " + throughput + " throughput "
-                    + " node : " + InetAddress.getLocalHost().getHostName());
+            if (benchmark)
+                logger.info("---BENCHMARK ENDED--- on " + runtime + " seconds with " + throughput + " throughput "
+                        + " node : " + InetAddress.getLocalHost().getHostName());
 
 
         } catch (Exception e) {

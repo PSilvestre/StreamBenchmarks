@@ -23,6 +23,7 @@ public class DataGeneratorThread extends Thread {
     private BlockingQueue<String> buffer;
     private EventGenerator eventGenerator;
     private HashMap<Long, Integer> bufferSizeAtTime = new HashMap<>();
+    private boolean running;
 
     private HashMap<Long, Integer> dataGenRate = new HashMap<>();
 
@@ -42,12 +43,20 @@ public class DataGeneratorThread extends Thread {
         }
     }
 
+    public boolean isRunning() {
+        return running;
+    }
+
+    public void setRunning(boolean running) {
+        this.running = running;
+    }
 
     private void sendTuples(int tupleCount) throws Exception {
         long currTime = System.currentTimeMillis();
         int tempVal = 0;
+        running = true;
         if (sleepTime != 0) {
-            for (int i = 0; i < tupleCount; ) {
+            for (int i = 0; i < tupleCount && running; ) {
                 Thread.sleep(sleepTime);
                 for (int b = 0; b < 1 && i < tupleCount; b++, i++) { //TODO what is going on here
                     buffer.put(this.eventGenerator.generateEvent().toString());
@@ -61,7 +70,7 @@ public class DataGeneratorThread extends Thread {
                 }
             }
         } else {
-            for (int i = 0; i < tupleCount; ) {
+            for (int i = 0; i < tupleCount && running; ) {
                 for (int b = 0; b < 1 && i < tupleCount; b++, i++) {
                     buffer.put(this.eventGenerator.generateEvent().toString());
                     if (i % 1000 == 0) {
@@ -74,8 +83,8 @@ public class DataGeneratorThread extends Thread {
                 }
             }
         }
-        long runtime = (currTime - System.currentTimeMillis()) / 1000;
-        System.out.println("Benchmark producer data rate is " + tupleCount / runtime + " ps");
+        //long runtime = (currTime - System.currentTimeMillis()) / 1000;
+        //System.out.println("Benchmark producer data rate is " + tupleCount / runtime + " ps");
     }
 }
 
